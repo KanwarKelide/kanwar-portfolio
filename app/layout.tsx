@@ -1,20 +1,8 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Syne, Plus_Jakarta_Sans } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
 import "./globals.css";
 import SmoothScroll from "@/components/ui/SmoothScroll";
-
-const display = Syne({
-  subsets: ["latin"],
-  variable: "--font-display",
-  weight: ["400", "500", "600", "700", "800"],
-});
-
-const body = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  variable: "--font-body",
-  weight: ["300", "400", "500", "600"],
-});
 
 export const metadata: Metadata = {
   title: "Kanwar Kelide — AI Product Engineer",
@@ -28,13 +16,15 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${display.variable} ${body.variable}`}>
+    <html lang="en" className={GeistSans.variable}>
+      <head>
+        <link
+          rel="stylesheet"
+          href="https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap"
+        />
+      </head>
       <body>
         <SmoothScroll>{children}</SmoothScroll>
       </body>
