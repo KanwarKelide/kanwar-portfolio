@@ -3,7 +3,7 @@
 
 import { useRef, useMemo, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Html, Billboard } from "@react-three/drei";
+import { Html } from "@react-three/drei";
 import * as THREE from "three";
 
 const vertexShader = `
@@ -36,7 +36,6 @@ const fragmentShader = `
 
 function CentralOrb() {
   const meshRef = useRef<THREE.Mesh>(null);
-  const glowRef = useRef<THREE.Mesh>(null);
   const uniforms = useMemo(() => ({
     uTime: { value: 0 },
     uColor1: { value: new THREE.Color("#6366f1") },
@@ -45,9 +44,7 @@ function CentralOrb() {
 
   useFrame((state) => {
     uniforms.uTime.value = state.clock.elapsedTime;
-    if (meshRef.current) {
-      meshRef.current.rotation.y = state.clock.elapsedTime * 0.2;
-    }
+    if (meshRef.current) meshRef.current.rotation.y = state.clock.elapsedTime * 0.2;
   });
 
   return (
@@ -62,7 +59,7 @@ function CentralOrb() {
           depthWrite={false}
         />
       </mesh>
-      <mesh ref={glowRef} scale={1.8}>
+      <mesh scale={1.8}>
         <sphereGeometry args={[0.35, 16, 16]} />
         <meshBasicMaterial color="#6366f1" transparent opacity={0.04} side={THREE.BackSide} />
       </mesh>
@@ -72,8 +69,10 @@ function CentralOrb() {
   );
 }
 
-function OrbitRing({
-  items,
+function OrbitItem({
+  name,
+  index,
+  total,
   radius,
   tilt,
   speed,
@@ -82,7 +81,9 @@ function OrbitRing({
   hovered,
   setHovered,
 }: {
-  items: string[];
+  name: string;
+  index: number;
+  total: number;
   radius: number;
   tilt: number;
   speed: number;
@@ -92,55 +93,52 @@ function OrbitRing({
   setHovered: (v: string | null) => void;
 }) {
   const groupRef = useRef<THREE.Group>(null);
+  const startAngle = (index / total) * Math.PI * 2;
 
-  const positions = useMemo(() =>
-    items.map((_, i) => {
-      const angle = (i / items.length) * Math.PI * 2;
-      return new THREE.Vector3(Math.cos(angle) * radius, yOffset, Math.sin(angle) * radius);
-    }),
-    [items, radius, yOffset]
-  );
-
-  useFrame((_, delta) => {
+  useFrame((state) => {
     if (!groupRef.current) return;
-    groupRef.current.rotation.y += speed * delta;
+    const a = startAngle + state.clock.elapsedTime * speed;
+    groupRef.current.position.x = Math.cos(a) * radius;
+    groupRef.current.position.z = Math.sin(a) * radius;
+    groupRef.current.position.y = yOffset + Math.sin(state.clock.elapsedTime * 0.4 + startAngle) * 0.08;
+    groupRef.current.rotation.x = tilt;
   });
 
-  return (
-    <group ref={groupRef} rotation={[tilt, 0, 0]}>
-      {/* Ring line */}
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[radius, 0.006, 4, 128]} />
-        <meshBasicMaterial color={color} transparent opacity={0.12} />
-      </mesh>
+  const isHovered = hovered === name;
 
-      {items.map((name, i) => (
-        <Billboard key={name} position={positions[i]}>
-          <Html
-            center
-            distanceFactor={9}
-            zIndexRange={[0, 10]}
-            style={{ pointerEvents: "all" }}
-          >
-            <div
-              className="orbit-chip"
-              style={{
-                borderColor: hovered === name ? color : "rgba(99,102,241,0.3)",
-                color: hovered === name ? "#ffffff" : "#f8fafc",
-                transform: hovered === name ? "scale(1.15)" : "scale(1)",
-                transition: "all 0.2s ease",
-                pointerEvents: "auto",
-                cursor: "default",
-              }}
-              onMouseEnter={() => setHovered(name)}
-              onMouseLeave={() => setHovered(null)}
-            >
-              {name}
-            </div>
-          </Html>
-        </Billboard>
-      ))}
+  return (
+    <group ref={groupRef}>
+      <Html
+        center
+        distanceFactor={8}
+        zIndexRange={[1, 10]}
+        occlude={false}
+      >
+        <div
+          className="orbit-chip"
+          style={{
+            borderColor: isHovered ? color : "rgba(99,102,241,0.3)",
+            color: isHovered ? "#ffffff" : "#f8fafc",
+            transform: isHovered ? "scale(1.15)" : "scale(1)",
+            transition: "all 0.2s ease",
+            cursor: "default",
+          }}
+          onPointerEnter={() => setHovered(name)}
+          onPointerLeave={() => setHovered(null)}
+        >
+          {name}
+        </div>
+      </Html>
     </group>
+  );
+}
+
+function RingLine({ radius, tilt, color }: { radius: number; tilt: number; color: string }) {
+  return (
+    <mesh rotation={[Math.PI / 2 + tilt, 0, 0]}>
+      <torusGeometry args={[radius, 0.006, 4, 128]} />
+      <meshBasicMaterial color={color} transparent opacity={0.1} />
+    </mesh>
   );
 }
 
@@ -162,26 +160,38 @@ function CloudScene() {
     <>
       <ambientLight intensity={0.15} />
       <CentralOrb />
-      <OrbitRing
-        items={buildNames}
-        radius={4.2}
-        tilt={0.25}
-        speed={0.1}
-        yOffset={0}
-        color="#a5b4fc"
-        hovered={hovered}
-        setHovered={setHovered}
-      />
-      <OrbitRing
-        items={aiNames}
-        radius={2.4}
-        tilt={-0.2}
-        speed={-0.16}
-        yOffset={0.2}
-        color="#67e8f9"
-        hovered={hovered}
-        setHovered={setHovered}
-      />
+      <RingLine radius={4.2} tilt={0.25} color="#a5b4fc" />
+      <RingLine radius={2.4} tilt={-0.2} color="#67e8f9" />
+      {buildNames.map((name, i) => (
+        <OrbitItem
+          key={name}
+          name={name}
+          index={i}
+          total={buildNames.length}
+          radius={4.2}
+          tilt={0.25}
+          speed={0.1}
+          yOffset={0}
+          color="#a5b4fc"
+          hovered={hovered}
+          setHovered={setHovered}
+        />
+      ))}
+      {aiNames.map((name, i) => (
+        <OrbitItem
+          key={name}
+          name={name}
+          index={i}
+          total={aiNames.length}
+          radius={2.4}
+          tilt={-0.2}
+          speed={-0.16}
+          yOffset={0.2}
+          color="#67e8f9"
+          hovered={hovered}
+          setHovered={setHovered}
+        />
+      ))}
     </>
   );
 }
