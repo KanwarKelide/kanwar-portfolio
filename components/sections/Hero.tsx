@@ -4,6 +4,7 @@ import { useRef, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import dynamic from "next/dynamic";
 import { gsap } from "@/lib/gsap";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
 const HeroCanvas = dynamic(() => import("@/components/three/HeroCanvas"), {
   ssr: false,
@@ -63,7 +64,9 @@ export default function Hero() {
       className="relative w-full min-h-screen flex flex-col items-center justify-center overflow-hidden"
     >
       {!isMobile ? (
-        <HeroCanvas />
+        <ErrorBoundary>
+          <HeroCanvas />
+        </ErrorBoundary>
       ) : (
         <div
           className="absolute inset-0"

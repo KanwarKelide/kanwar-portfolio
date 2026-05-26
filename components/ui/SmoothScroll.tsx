@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import Lenis from "lenis";
 
 export default function SmoothScroll({ children }: { children: React.ReactNode }) {
-  const lenisRef = useRef<Lenis | null>(null);
-
   useEffect(() => {
     const lenis = new Lenis({
       duration: 1.2,
@@ -13,35 +11,37 @@ export default function SmoothScroll({ children }: { children: React.ReactNode }
       touchMultiplier: 2,
     });
 
-    lenisRef.current = lenis;
+    let stopDriving: (() => void) | undefined;
 
-    let animFrameId: number;
-
-    function raf(time: number) {
-      lenis.raf(time);
-      animFrameId = requestAnimationFrame(raf);
-    }
-
-    animFrameId = requestAnimationFrame(raf);
-
-    // Wire up GSAP ScrollTrigger if available (non-blocking)
-    let cleanup: (() => void) | undefined;
+    // Try to drive Lenis via GSAP ticker for proper ScrollTrigger sync
     import("@/lib/gsap")
       .then(({ gsap, ScrollTrigger }) => {
-        lenis.on("scroll", ScrollTrigger.update);
-        cleanup = () => {
-          lenis.off("scroll", ScrollTrigger.update);
-          ScrollTrigger.getAll().forEach((t) => t.kill());
+        const tickerCb = (time: number) => lenis.raf(time * 1000);
+        gsap.ticker.add(tickerCb);
+        gsap.ticker.lagSmoothing(0);
+
+        const scrollCb = () => ScrollTrigger.update();
+        lenis.on("scroll", scrollCb);
+
+        stopDriving = () => {
+          gsap.ticker.remove(tickerCb);
+          lenis.off("scroll", scrollCb);
         };
       })
       .catch(() => {
-        // GSAP not available, continue without ScrollTrigger sync
+        // GSAP unavailable — use native RAF loop
+        let animFrameId: number;
+        const raf = (time: number) => {
+          lenis.raf(time);
+          animFrameId = requestAnimationFrame(raf);
+        };
+        animFrameId = requestAnimationFrame(raf);
+        stopDriving = () => cancelAnimationFrame(animFrameId);
       });
 
     return () => {
-      cancelAnimationFrame(animFrameId);
+      stopDriving?.();
       lenis.destroy();
-      cleanup?.();
     };
   }, []);
 

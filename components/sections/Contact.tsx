@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { motion, useInView } from "framer-motion";
 import dynamic from "next/dynamic";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
 const ContactOrb = dynamic(() => import("@/components/three/ContactOrb"), { ssr: false });
 
@@ -17,7 +18,9 @@ export default function Contact() {
       style={{ minHeight: "80vh", display: "flex", alignItems: "center" }}
     >
       <div className="absolute inset-0 pointer-events-none">
-        <ContactOrb />
+        <ErrorBoundary>
+          <ContactOrb />
+        </ErrorBoundary>
       </div>
 
       <div

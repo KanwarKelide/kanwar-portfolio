@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState } from "react";
 import { motion, useInView } from "framer-motion";
 import dynamic from "next/dynamic";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import {
   SiPython, SiJavascript, SiDart, SiNextdotjs, SiNestjs,
   SiDjango, SiFlutter, SiTailwindcss, SiPostgresql, SiMongodb,
@@ -121,7 +122,9 @@ export default function TechStack() {
           transition={{ duration: 1, delay: 0.3 }}
           style={{ height: "460px", width: "100%", position: "relative" }}
         >
-          <OrbitCloud />
+          <ErrorBoundary>
+            <OrbitCloud />
+          </ErrorBoundary>
         </motion.div>
       )}
 

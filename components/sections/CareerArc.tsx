@@ -2,8 +2,8 @@
 
 import { useRef, useEffect, useState } from "react";
 import { motion, useInView } from "framer-motion";
-import { gsap, ScrollTrigger } from "@/lib/gsap";
 import dynamic from "next/dynamic";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
 const MiniCanvas = dynamic(() => import("@/components/three/CareerMiniCanvas"), { ssr: false });
 
@@ -57,26 +57,38 @@ export default function CareerArc() {
   useEffect(() => {
     if (isMobile || !wrapperRef.current || !trackRef.current) return;
 
-    const ctx = gsap.context(() => {
-      const track = trackRef.current!;
-      const wrapper = wrapperRef.current!;
+    let cleanup: (() => void) | undefined;
+    let cancelled = false;
 
-      gsap.to(track, {
-        x: () => -(track.scrollWidth - wrapper.clientWidth),
-        ease: "none",
-        scrollTrigger: {
-          trigger: wrapper,
-          start: "top top",
-          end: () => `+=${track.scrollWidth - wrapper.clientWidth}`,
-          pin: true,
-          scrub: 1.2,
-          anticipatePin: 1,
-          invalidateOnRefresh: true,
-        },
-      });
-    }, wrapperRef.current);
+    import("@/lib/gsap").then(({ gsap, ScrollTrigger }) => {
+      if (cancelled || !wrapperRef.current || !trackRef.current) return;
+      const track = trackRef.current;
+      const wrapper = wrapperRef.current;
 
-    return () => ctx.revert();
+      ScrollTrigger.refresh();
+      const ctx = gsap.context(() => {
+        gsap.to(track, {
+          x: () => -(track.scrollWidth - wrapper.clientWidth),
+          ease: "none",
+          scrollTrigger: {
+            trigger: wrapper,
+            start: "top top",
+            end: () => `+=${track.scrollWidth - wrapper.clientWidth}`,
+            pin: true,
+            scrub: 1.2,
+            anticipatePin: 1,
+            invalidateOnRefresh: true,
+          },
+        });
+      }, wrapper);
+
+      cleanup = () => ctx.revert();
+    }).catch(() => {});
+
+    return () => {
+      cancelled = true;
+      cleanup?.();
+    };
   }, [isMobile]);
 
   if (isMobile) {
@@ -143,7 +155,9 @@ function HorizontalPanel({
         className="absolute right-0 top-0 bottom-0 pointer-events-none"
         style={{ width: "45vw", opacity: 0.7 }}
       >
-        <MiniCanvas shape={beat.shape} accent={beat.accent} />
+        <ErrorBoundary>
+          <MiniCanvas shape={beat.shape} accent={beat.accent} />
+        </ErrorBoundary>
       </div>
 
       {/* Content */}
